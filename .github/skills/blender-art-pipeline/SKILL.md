@@ -22,6 +22,19 @@ with Blender's Python (`bpy`) and run headless — no manual clicking needed.
 Flat painted-paper look: saturated orange hair with sienna brush strokes, peach skin, red round cheeks,
 ivory eyes with dusty-blue irises, sage-green paper background with grey charcoal halo.
 
+## Clown (second launch character)
+- Script: `art/blender/scripts/create_clown.py`, reusing the adjacent redhead script's shape,
+  brush, pigment and camera helpers.
+- Run: `Blender --background --factory-startup --python art/blender/scripts/create_clown.py`
+  (`--preview` for a half-size draft, `--no-render` to only save the .blend).
+- Output: `art/blender/clown-portrait.blend` and `art/renders/clown-portrait.png`.
+- Collections 00–03 form the blank base: paper, charcoal halo, head/ears/neck, red cheeks.
+- Collections 04–11 are eight complete pieces: hat, left tuft, right tuft, round eye, X eye,
+  red nose, white smile, bow tie. Each has a stable `piece_id` and `draggable = True`.
+  All decorations stay inside their owning piece collection.
+- The saved scene always retains the full 1502×1600 front-camera framing, even with `--preview`.
+  Preview output is `art/renders/clown-preview.png`.
+
 ## Exporting game pieces (to build)
 Each draggable piece must become **one transparent PNG**, all rendered from the same front camera so
 positions line up:

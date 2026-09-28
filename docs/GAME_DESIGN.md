@@ -30,10 +30,23 @@ Draggable pieces for the redhead girl (first character):
 | Mouth | lips + interior + teeth |
 | Collar/shirt | optional |
 
-Clown character (from the toy): hat, left hair tuft, right hair tuft, eye, X-eye, red nose, smile, bow tie.
+Draggable pieces for the clown (confirmed second character, from the toy box):
+| Piece | Includes |
+|---|---|
+| Green bowler hat | green crown + golden trim + dark ribbon |
+| Left orange hair tuft | orange silhouette + painted strands |
+| Right orange hair tuft | orange silhouette + painted strands |
+| Round eye | ivory white + black vertical pupil |
+| X eye | ivory white + black X |
+| Red ball nose | red circle + shaded rim + painted highlight |
+| White smile | ivory smile shape + curved red line |
+| Pink-and-white polka-dot bow tie | both wings + knot + dots |
+
+Clown blank base: peach head, ears, neck and red cheeks, on sage/teal paper with a grey charcoal halo.
+Each of its eight draggable features has its own Blender collection, including all decorative layers.
 
 ## Launch scope (decided)
-- **v1 launches with 2 characters:** the redhead girl and a second character (likely the clown from the toy box — to confirm).
+- **v1 launches with 2 characters:** the redhead girl and the clown from the toy box (both confirmed).
 
 ## Modes (open question)
 - **Match mode** — recreate the example exactly (pieces have a correct slot).
@@ -52,6 +65,10 @@ Clown character (from the toy): hat, left hair tuft, right hair tuft, eye, X-eye
 ## Art pipeline
 Blender (`art/blender/`) → render each piece to its own transparent PNG + a JSON of target positions
 → imported into Godot. See `.github/skills/blender-art-pipeline/SKILL.md`.
+
+Clown source: `art/blender/scripts/create_clown.py` (reuses the redhead script's art helpers).
+Editable artwork: `art/blender/clown-portrait.blend`; example portrait: `art/renders/clown-portrait.png`.
+Both characters use the same 1502×1600 front orthographic canvas and painted-paper material approach.
 
 ## Open questions
 - Target age range?
