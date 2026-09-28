@@ -32,6 +32,9 @@ Draggable pieces for the redhead girl (first character):
 
 Clown character (from the toy): hat, left hair tuft, right hair tuft, eye, X-eye, red nose, smile, bow tie.
 
+## Launch scope (decided)
+- **v1 launches with 2 characters:** the redhead girl and a second character (likely the clown from the toy box — to confirm).
+
 ## Modes (open question)
 - **Match mode** — recreate the example exactly (pieces have a correct slot).
 - **Free/creative mode** — mix features from any character; no wrong answers.
@@ -53,7 +56,6 @@ Blender (`art/blender/`) → render each piece to its own transparent PNG + a JS
 ## Open questions
 - Target age range?
 - Match mode, free mode, or both for v1?
-- How many characters at launch?
 - Wrong-spot behaviour: bounce back to tray, or stay where dropped?
 - Voice-over / names of features ("Where does the nose go?")?
 - Monetisation: paid app, free with character packs, or free?
