@@ -14,4 +14,21 @@ The script creates:
 - soft 3-light studio setup
 - head-origin guide
 
+The bootstrap supports the Eevee engine names in Blender 4.x and 5.x.
+
+## Face Match Puzzle portrait pass
+
+From the repository root, use Blender 5.2:
+
+```sh
+/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup \
+  --python-exit-code 1 --python art/blender/scripts/create_gbam_character.py -- --character all
+```
+
+The portrait builder runs this bootstrap, aims its lights at the head, switches to front
+orthographic framing and Cycles, and builds the two selected roster characters. It saves and
+reopens each scene before rendering the complete portrait and its blank puzzle base.
+Use `--character boy` or `--character girl` for just one; add `--verify-only` to validate saved
+scenes and PNGs without rebuilding. Outputs and prototype limitations are in `docs/GAME_DESIGN.md`.
+
 Your AI can then build into the prepared collections.

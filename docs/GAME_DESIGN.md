@@ -6,9 +6,12 @@ Status: **discussion / pre-production**. No game code yet.
 A digital version of a magnetic face-building toy for young children. Each "card" is a character.
 The child rebuilds the character's face by placing its features on a blank head.
 
-Reference photos:
-- `art/reference/gameplay-concept-clown-box.png` — the physical toy: example card (left), blank face (middle), loose pieces (right).
-- `art/reference/redhead-girl-reference.png` — first character card to recreate.
+Gameplay reference:
+- `art/reference/gameplay-concept-clown-box.png` — example card (left), blank face (middle), loose pieces (right).
+
+Current character references: `art/gbam_kit/01_REFERENCE_IMAGES/OWN_STYLE_PRIMARY/`.
+The toy-box characters and `art/reference/redhead-girl-reference.png` are historical art references,
+not designs to recreate for launch.
 
 ## Core loop
 1. Pick a character card.
@@ -18,38 +21,47 @@ Reference photos:
 5. All pieces placed → character **celebrates** (animation, sound). Next card.
 
 ## Pieces (split by whole facial feature)
-Blank base (not draggable): head/face shape, ears, neck, cheeks, background.
+Blank base (not draggable): shared rounded-square head, ears with inner details, neck, coral cheek
+patches, portrait outfit and mint background. Ears and cheeks remain separate editable assets, but
+stay on the blank base. No eyes, eyebrows, nose, mouth or hair remain in the blank render.
 
-Draggable pieces for the redhead girl (first character):
-| Piece | Includes |
+**Boy — `CHR_M_001_COILS_YELLOW` (7 draggable pieces)**
+
+| Piece ID | Includes |
 |---|---|
-| Hair (bob) | fringe + side locks + strands (may split into left/right/fringe — TBD) |
-| Left eye | white + iris + pupil + highlight |
-| Right eye | white + iris + pupil + highlight |
-| Nose | outline + highlight + shadow |
-| Mouth | lips + interior + teeth |
-| Collar/shirt | optional |
+| `eye_l` | left eye white + brown iris + dark pupil + catchlight |
+| `eye_r` | right eye white + brown iris + dark pupil + catchlight |
+| `brow_l` | left thick curved eyebrow |
+| `brow_r` | right thick curved eyebrow |
+| `nose` | soft geometric wedge |
+| `mouth` | wide happy smile + lip edge + interior + upper teeth + tongue |
+| `hair_coils` | scalp cap + all short, dense coil masses |
 
-Draggable pieces for the clown (confirmed second character, from the toy box):
-| Piece | Includes |
+Skin: `SKIN_WARM_MEDIUM`. Yellow hoodie shoulders are a fixed portrait accent.
+
+**Girl — `CHR_F_001_PUFFS_OVERALLS` (9 draggable pieces)**
+
+| Piece ID | Includes |
 |---|---|
-| Green bowler hat | green crown + golden trim + dark ribbon |
-| Left orange hair tuft | orange silhouette + painted strands |
-| Right orange hair tuft | orange silhouette + painted strands |
-| Round eye | ivory white + black vertical pupil |
-| X eye | ivory white + black X |
-| Red ball nose | red circle + shaded rim + painted highlight |
-| White smile | ivory smile shape + curved red line |
-| Pink-and-white polka-dot bow tie | both wings + knot + dots |
+| `eye_l` | left eye white + brown iris + dark pupil + catchlight |
+| `eye_r` | right eye white + brown iris + dark pupil + catchlight |
+| `brow_l` | left thick curved eyebrow |
+| `brow_r` | right thick curved eyebrow |
+| `nose` | soft geometric wedge |
+| `mouth` | wide happy smile + lip edge + interior + upper teeth + tongue |
+| `hair_cap` | swept scalp cap + shallow hair ridges |
+| `hair_puff_l` | left puff bun + its small pink flower |
+| `hair_puff_r` | right puff bun + its small pink flower |
 
-Clown blank base: peach head, ears, neck and red cheeks, on sage/teal paper with a grey charcoal halo.
-Each of its eight draggable features has its own Blender collection, including all decorative layers.
+Skin: `SKIN_WARM_BROWN`. Green overall straps/bib and coral shirt shoulders are fixed portrait accents.
+Left/right IDs follow the kit's anchor labels (L = negative X).
+Each piece is one collection with a stable `piece_id`; all its component objects travel together.
 
 ## Launch scope (decided)
 - **v1 launches with 2 characters**, in the **GBAM style** (see below): `CHR_M_001_COILS_YELLOW` (boy,
   short coils, yellow hoodie) and `CHR_F_001_PUFFS_OVERALLS` (girl, two puff buns, green overalls).
-  The earlier redhead-girl/clown painted-paper art (`art/blender/`, `art/renders/redhead-portrait.png`,
-  `art/renders/clown-portrait.png`) is superseded and kept only for history.
+  The earlier redhead-girl/clown painted-paper scenes and scripts in `art/blender/`, plus their
+  portrait renders, are superseded and kept only for history. New `gbam-*` files are the active art.
 
 ## Art style (decided): GBAM
 - The full modular 3D character system supplied in `art/gbam_kit/` replaces the flat cut-paper style.
@@ -76,9 +88,26 @@ Each of its eight draggable features has its own Blender collection, including a
 Blender (`art/blender/`) → render each piece to its own transparent PNG + a JSON of target positions
 → imported into Godot. See `.github/skills/blender-art-pipeline/SKILL.md`.
 
-Clown source: `art/blender/scripts/create_clown.py` (reuses the redhead script's art helpers).
-Editable artwork: `art/blender/clown-portrait.blend`; example portrait: `art/renders/clown-portrait.png`.
-Both characters use the same 1502×1600 front orthographic canvas and painted-paper material approach.
+Current source: `art/blender/scripts/create_gbam_character.py -- --character all` (run with Blender).
+It runs the kit's scene bootstrap, then builds the shared head, required face modules, and coils/puffs
+in separate passes. Both characters use the identical 0.440 m wide × 0.500 m high × 0.400 m deep,
+4,056-quad neutral head mesh with different palette materials.
+
+| Character | Editable scene | Complete portrait | Blank base |
+|---|---|---|---|
+| Boy | `art/blender/gbam-boy-portrait.blend` | `art/renders/gbam-boy-portrait.png` | `art/renders/gbam-boy-blank.png` |
+| Girl | `art/blender/gbam-girl-portrait.blend` | `art/renders/gbam-girl-portrait.png` | `art/renders/gbam-girl-blank.png` |
+
+Presentation uses the kit's 1024×1024 canvas, a shared front orthographic camera, matte Principled
+materials and a soft three-light studio. The `EYE_02_WIDE` variant is 20% wider and 10% taller than
+the canonical round globe, keeping the kit's iris/pupil sizes and eye anchors for phone readability.
+The slight brow/cheek/flower offsets are intentional asymmetry.
+
+This pass is a **portrait prototype**, not the complete kit asset library: only the face and hair
+variants needed by these two characters are built. Full-body modelling, finished clothing assets,
+facial deformation loops, rigging, UV/LOD work, and individual transparent piece exports are deferred.
+No Godot code yet. The saved scenes contain the complete characters; hiding `02_FACE` and
+`03_HAIR_HEADWEAR` produces the blank bases without changing camera framing.
 
 ## Open questions
 - Target age range?
