@@ -1,0 +1,42 @@
+CHARACTER ID:
+CHR_M_003_BRAIDS_OLIVE
+
+AGE GROUP:
+Teen / young adult
+
+SKIN:
+Warm deep brown
+
+HEAD:
+Canonical GBAM rounded head with broad cheeks and slightly tapered chin.
+
+EYES:
+Large dark-brown eyes, wide friendly spacing.
+
+BROWS:
+Thick, softly curved.
+
+NOSE:
+NOSE_03_SHORT, broad rounded stylised form.
+
+MOUTH:
+MOUTH_02_SMILE_TEETH, open friendly smile.
+
+CHEEKS:
+Warm orange-red circular cheek accents.
+
+HAIR:
+Cornrow pattern with a centre-based geometric parting.
+Medium-thickness braids extend from the scalp and hang around the sides of the face.
+Braid diameter 0.020–0.026 m.
+Keep braids chunky and readable.
+Use slight length variation and asymmetry.
+
+CLOTHING:
+Olive hoodie with cream/off-white hood lining and dark shirt underneath.
+
+MATERIAL:
+Matte skin, rough dark hair, soft cloth.
+
+POSE:
+Front portrait, relaxed shoulders, cheerful expression.

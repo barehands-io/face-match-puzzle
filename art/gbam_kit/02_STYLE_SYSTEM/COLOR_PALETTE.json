@@ -1,0 +1,32 @@
+{
+  "neutrals": {
+    "eye_white": "#F7F1E7",
+    "hair_near_black": "#24140F",
+    "mouth_dark": "#3A201C",
+    "cream": "#F1E1BF",
+    "soft_black": "#25201E"
+  },
+  "skin_examples": {
+    "warm_light": "#E99A62",
+    "warm_medium": "#C96D38",
+    "warm_brown": "#A9512C",
+    "deep_brown": "#743A25",
+    "very_deep_brown": "#4B291E"
+  },
+  "cheeks": [
+    "#E84B2C",
+    "#E25836",
+    "#D94A32"
+  ],
+  "accents": {
+    "mint": "#77CDB2",
+    "coral": "#ED6A52",
+    "yellow": "#F5C542",
+    "blue": "#4C93C8",
+    "purple": "#7965A7",
+    "olive": "#5D603C",
+    "orange": "#E8833B",
+    "pink": "#E77C89"
+  },
+  "rule": "Use warm, slightly muted colours. Avoid neon unless it is a deliberate accessory."
+}

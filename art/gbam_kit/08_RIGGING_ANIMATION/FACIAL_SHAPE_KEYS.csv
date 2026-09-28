@@ -1,0 +1,16 @@
+Shape_Key,Purpose
+Basis,Neutral
+Blink_L,Close left eye
+Blink_R,Close right eye
+Blink_Both,Close both eyes
+Smile,Broad friendly smile
+Smile_Small,Subtle smile
+Frown,Mouth corners down
+Mouth_Open,Jaw/mouth open
+Mouth_O,Rounded surprise mouth
+Mouth_E,Wide phoneme
+Brow_Up_L,Raise left brow
+Brow_Up_R,Raise right brow
+Brow_Down,Concern/angry brow
+Cheek_Raise,Raise cheeks
+Squint,Soft eye squint

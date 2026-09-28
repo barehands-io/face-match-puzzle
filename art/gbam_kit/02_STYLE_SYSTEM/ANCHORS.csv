@@ -1,0 +1,13 @@
+Anchor,X_m,Y_m,Z_m,Notes
+HEAD_ORIGIN,0.0,0.0,0.0,Head-local origin
+EYE_L,-0.085,-0.19,0.045,Character left eye centre
+EYE_R,0.085,-0.19,0.045,Character right eye centre
+NOSE_ROOT,0.0,-0.195,0.015,Start of nose
+NOSE_TIP,0.0,-0.23,-0.015,Approximate nose tip
+MOUTH,0.0,-0.198,-0.105,Mouth centre
+CHEEK_L,-0.135,-0.197,-0.055,Character left cheek patch
+CHEEK_R,0.135,-0.197,-0.055,Character right cheek patch
+EAR_L,-0.22,-0.01,-0.005,Character left ear centre
+EAR_R,0.22,-0.01,-0.005,Character right ear centre
+HAIR_TOP,0.0,0.0,0.245,Approximate top attachment
+NECK,0.0,0.0,-0.245,Head/neck attachment

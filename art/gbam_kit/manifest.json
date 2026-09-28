@@ -1,0 +1,15 @@
+{
+  "project": "GBAM Character Kit",
+  "version": "1.0",
+  "purpose": "Original modular Blender character system and AI handoff",
+  "canonical_units": "1 BU = 1 metre",
+  "canonical_head_m": {
+    "width": 0.44,
+    "height": 0.5,
+    "depth": 0.4
+  },
+  "primary_reference_folder": "01_REFERENCE_IMAGES/OWN_STYLE_PRIMARY",
+  "start_here": "00_START_HERE/README.md",
+  "blender_bootstrap": "12_BLENDER_AUTOMATION/setup_character_project.py",
+  "copyright_rule": "Do not reproduce identifiable commercial artwork or imitate named studio/artist styles."
+}

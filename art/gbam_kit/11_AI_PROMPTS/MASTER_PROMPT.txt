@@ -1,0 +1,13 @@
+Build one character for the GBAM original 3D character system in Blender.
+
+Read and obey the supplied GBAM style bible, dimensions, anchors, naming convention, material rules, rig rules, and export rules.
+
+The character must use the GBAM signature:
+oversized rounded head, large expressive eyes, graphic cheek accents, simplified geometric nose, broad friendly mouth, chunky graphic hair/headwear, matte softly textured materials, subtle handmade asymmetry, and clean colour-blocked clothing.
+
+Do not imitate any named animation studio, artist, commercial toy, or packaging artwork.
+Do not use photorealistic anatomy, skin pores, individual hair-strand rendering, or overly detailed wrinkles.
+
+Model all swappable parts as separate objects.
+Use the canonical dimensions unless the character sheet explicitly overrides them.
+Create clean topology, UVs, materials, rig-compatible parts, and a front portrait preview.

@@ -1,0 +1,56 @@
+CHARACTER ID:
+[CHR_...]
+
+AGE GROUP:
+[toddler / child / teen / adult / older adult]
+
+PRESENTATION:
+[description]
+
+SKIN:
+[colour description + palette entry if used]
+
+HEAD:
+[width/shape variation from canonical]
+
+EYES:
+[shape / iris colour / spacing]
+
+BROWS:
+[shape]
+
+NOSE:
+[NOSE variant]
+
+MOUTH:
+[MOUTH variant + expression]
+
+CHEEKS:
+[colour / shape]
+
+HAIR:
+[style, length, parting, braid/loc/twist details]
+
+HEADWEAR:
+[none / hijab / kufi / cap / etc.]
+
+CLOTHING:
+[top, colours, pattern]
+
+ACCESSORIES:
+[optional]
+
+PERSONALITY READ:
+[cheerful / curious / calm / mischievous / etc.]
+
+POSE:
+[front / 3/4 / full body]
+
+SPECIAL MODELLING NOTES:
+[anything unique]
+
+RIGGING:
+Use standard GBAM rig and facial shape keys.
+
+EXPORT:
+Create LOD0 and prepare GLB.

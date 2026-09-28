@@ -1,0 +1,38 @@
+CHARACTER ID:
+CHR_F_004_HIJAB_CORAL
+
+AGE GROUP:
+Teen / young adult
+
+SKIN:
+Warm medium/deep brown.
+
+HEAD:
+Canonical GBAM head.
+
+EYES:
+Large dark-brown eyes with clear white catchlight.
+
+BROWS:
+Soft rounded brows.
+
+NOSE:
+NOSE_01_BEAN.
+
+MOUTH:
+MOUTH_02_SMILE_TEETH.
+
+CHEEKS:
+Coral cheek discs.
+
+HEADWEAR:
+HIJAB_02_SOFT_DRAPE in coral.
+Separate undercap in dark brown or cream.
+Use 4–5 large readable fold lines.
+No tiny cloth wrinkles.
+
+CLOTHING:
+Simple cream top with a large-scale floral print.
+
+POSE:
+Front portrait, warm smile.

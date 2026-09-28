@@ -1,0 +1,16 @@
+Asset/feature,Width_m,Height_m,Depth_or_thickness_m,Notes
+Base head,0.440,0.500,0.400,Canonical adult/teen local head
+Child head,0.420,0.470,0.380,Use slightly larger head-to-body ratio
+Eye globe,0.078,0.078,0.048,Slightly flattened sphere
+Iris disc/dome,0.038,0.038,0.006,Separate object or material layer
+Pupil,0.020,0.020,0.005,Separate or same eye material
+Eyebrow,0.095,0.022,0.010,Curved strip
+Nose,0.075,0.110,0.060,Rounded wedge
+Mouth smile,0.175,0.070,0.024,Outer mouth envelope
+Ear,0.095,0.115,0.035,Soft rounded ear
+Cheek patch,0.072,0.066,0.003,Material decal or very shallow mesh
+Braid diameter,0.018-0.028,varies,0.018-0.028,Chunky stylised braid
+Braid bead,0.022-0.030,0.025-0.035,0.022-0.030,Optional
+Hair cap offset,n/a,n/a,0.010-0.020,Offset from scalp
+Hijab shell thickness,n/a,n/a,0.004-0.008,Solidify thickness
+Cloth shell thickness,n/a,n/a,0.003-0.008,Shirts/hoodies

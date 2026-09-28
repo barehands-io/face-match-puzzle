@@ -1,0 +1,49 @@
+PROJECT: GBAM CHARACTER SYSTEM v1
+
+GOAL
+Build an original family of modular stylised 3D characters in Blender from the supplied in-house references and specifications.
+
+DO NOT
+- copy a commercial toy or packaging design
+- imitate a named animation studio or living artist
+- make the characters photorealistic
+- use realistic skin pores or individual hair strands
+- make facial anatomy sharp or adult-realistic
+- merge all pieces too early
+- change the established signature proportions without documenting the change
+
+STYLE
+A warm, handcrafted, storybook-toy 3D look:
+- large rounded head
+- simplified small body
+- large expressive eyes
+- graphic cheeks
+- geometric rounded nose
+- friendly mouth
+- chunky hairstyles and braids
+- matte materials
+- soft colour blocking
+- subtle texture/grain
+- slight handmade asymmetry
+- clean readable silhouette
+
+MODELLING
+Use subdivision-friendly geometry. Prefer quads for the deforming base mesh. Use separate objects for eyes, irises/pupils, teeth, tongue, hair, headwear, clothing, and major accessories. Keep face modules replaceable.
+
+RIGGING
+Create a clean humanoid rig plus facial controls/shape keys. Eyes must rotate independently. Jaw and mouth must animate. Hair/headwear follows the head. Clothing should be easy to swap.
+
+OUTPUT
+Produce:
+- clean Blender file
+- organised collections
+- named modular assets
+- LOD-ready geometry
+- UVs
+- simple PBR materials
+- neutral A-pose or relaxed T-pose for full body
+- front portrait pose for presentation renders
+- GLB export test
+- preview render matching the camera/lighting specification
+
+Use the dimensions and naming conventions included in this kit.
