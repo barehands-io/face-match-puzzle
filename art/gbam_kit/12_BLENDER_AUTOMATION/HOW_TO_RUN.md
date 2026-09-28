@@ -25,9 +25,10 @@ From the repository root, use Blender 5.2:
   --python-exit-code 1 --python art/blender/scripts/create_gbam_character.py -- --character all
 ```
 
-The portrait builder runs this bootstrap, aims its lights at the head, switches to front
-orthographic framing and Cycles, and builds the two selected roster characters. It saves and
-reopens each scene before rendering the complete portrait and its blank puzzle base.
+The active portrait builder now uses the original flat Bezier illustration helpers, **not this 3D
+bootstrap**. The owner corrected the style to flat painted illustration. It uses unlit pigment,
+no lights, and saves `-flat.blend` scenes and `-flat.png` portraits/blank bases without overwriting
+the historical 3D outputs. It reopens each scene before rendering.
 Use `--character boy` or `--character girl` for just one; add `--verify-only` to validate saved
 scenes and PNGs without rebuilding. Outputs and prototype limitations are in `docs/GAME_DESIGN.md`.
 

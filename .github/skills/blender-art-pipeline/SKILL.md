@@ -8,32 +8,37 @@ description: Create or modify character artwork in Blender and export game-ready
 Blender 5.2 lives at `/Applications/Blender.app/Contents/MacOS/Blender` (macOS). Everything is scripted
 with Blender's Python (`bpy`) and run headless — no manual clicking needed.
 
-## Current style and characters: GBAM
-The supplied modular 3D kit replaces the old painted-paper art. Read `docs/GAME_DESIGN.md`,
-`art/gbam_kit/00_START_HERE/README.md`, `AI_TASK_SEQUENCE.md`, and
-`art/gbam_kit/02_STYLE_SYSTEM/STYLE_BIBLE.md` before building.
+## Current style and characters: flat painted GBAM
+The owner corrected the rendering style: **flat painted illustration, NOT 3D clay**.
+Read `docs/GAME_DESIGN.md` and view
+`art/gbam_kit/01_REFERENCE_IMAGES/OWN_STYLE_PRIMARY/gbam_flat_style_reference_sheet.png`.
+That reference takes precedence over the kit's 3D material/lighting instructions. GBAM still
+supplies the character designs, diversity, soft proportions and warm palette.
 
 - Launch pair: `CHR_M_001_COILS_YELLOW` and `CHR_F_001_PUFFS_OVERALLS`.
 - Script: `art/blender/scripts/create_gbam_character.py`.
 - Run: `Blender --background --factory-startup --python-exit-code 1 --python art/blender/scripts/create_gbam_character.py -- --character all`.
-  Use `boy` or `girl` instead of `all` for one character; `--no-render` saves scenes only.
+  Use `boy` or `girl` instead of `all` for one character.
 - Validate existing scenes/images without rebuilding: the same command with `--verify-only`.
-- The script runs the kit bootstrap (adapted for the Blender 5 Eevee engine name), then builds the
-  shared neutral head, required face modules, and coils/puffs. It uses matte Principled materials,
-  metric units, forward -Y, up +Z, 1024×1024 front orthographic framing and soft Cycles lighting.
-- Outputs: `art/blender/gbam-{boy,girl}-portrait.blend`,
-  `art/renders/gbam-{boy,girl}-portrait.png`, `art/renders/gbam-{boy,girl}-blank.png`.
-- `01_BASE` contains the head, neck, ears and coral cheeks. `02_FACE` contains one subcollection
-  per eye, brow, nose and mouth. `03_HAIR_HEADWEAR` contains one boy hair piece or three girl hair
-  pieces (cap, left puff/flower, right puff/flower). Each draggable collection has a `piece_id`.
-- Hide `02_FACE` and `03_HAIR_HEADWEAR` for the blank render. `04_CLOTHING` contains fixed
-  portrait-only shoulder accents, not full-body outfits.
-- The common neutral cage is 0.440×0.400×0.500 m (X/Y/Z), with 4,056 quads. The wide eye variant
-  uses 1.20× canonical width and 1.10× height; the kit's iris/pupil sizes and anchors stay unchanged.
-- These are portrait prototypes. Full face/hair libraries, rigging, facial deformation topology,
-  full bodies, UV/LOD work and individual game-piece exports are not complete.
+- Reuse `create_character.py` helpers: `shape`, `oval`, `polygon`, `brush`, `pigment`.
+  Editable Bezier layers have tiny extrusion/bevel. Pigment noise ramps feed directly into
+  emission, with no diffuse/specular shaders, lights or volumetric meshes. Standard colour
+  management preserves flat palette colours and the paint texture.
+- Outputs: `art/blender/gbam-{boy,girl}-portrait-flat.blend`,
+  `art/renders/gbam-{boy,girl}-portrait-flat.png`, `art/renders/gbam-{boy,girl}-blank-flat.png`.
+  Canvas: 1502×1600, front orthographic, same alignment for full/blank.
+- Preserve all earlier non-`-flat` GBAM scenes/renders as history. Their former 3D generator is
+  embedded in those `.blend` files and remains in Git history; do not iterate that pipeline.
+- Each eye is a flat white almond + dark outline + single dark pupil, with no iris/catchlight.
+  Noses have at most two paint accents. Hair uses flat masses with short curved/hatching strokes.
+- Hide collections with `draggable = True` for blank faces. Each has a stable `piece_id`.
+  The boy has seven pieces; the girl has nine (cap and each puff/flower are separate).
+  Collections 01–03 retain head/ears/neck, flat cheek circles and fixed portrait outfits.
+- Backgrounds are bold flat panels: yellow boy, coral girl. Keep grain and painted strokes,
+  but never introduce 3D shading, gradients or shiny dots.
+- Individual transparent game-piece exports and gameplay are not built yet.
 
-## Historical artwork: redhead girl (do not build on for launch)
+## Original redhead artwork (reuse technique, not character design)
 - Script: `art/blender/scripts/create_character.py` — builds the redhead girl as an editable 2.5D
   cut-paper scene (Bezier curve layers with small extrusion, emission-heavy pigment materials,
   orthographic front camera at 1502×1600).
@@ -71,9 +76,9 @@ positions line up:
 Output to `game/assets/characters/<character_id>/`.
 
 Group multi-part features into one piece (eye = white + iris + pupil + highlight).
-GBAM piece boundaries are already recorded in `piece_id` subcollections. Keep the lights and camera
-enabled when isolating a piece, but hide `STUDIO_BACKDROP`, the base and other geometry for alpha.
-Presentation PNGs include the mint backdrop and are not individual transparent game pieces.
+GBAM piece boundaries are recorded in `piece_id` collections. Keep the camera, but hide
+`00 - Painted background`, the base and other pieces for alpha. Do not add lights.
+Presentation PNGs include coloured backgrounds and are not individual transparent game pieces.
 
 ## Verification
 Re-open the saved .blend headlessly and assert object/collection counts; always view the rendered PNG.

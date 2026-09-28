@@ -9,7 +9,8 @@ The child rebuilds the character's face by placing its features on a blank head.
 Gameplay reference:
 - `art/reference/gameplay-concept-clown-box.png` — example card (left), blank face (middle), loose pieces (right).
 
-Current character references: `art/gbam_kit/01_REFERENCE_IMAGES/OWN_STYLE_PRIMARY/`.
+Authoritative rendering reference:
+`art/gbam_kit/01_REFERENCE_IMAGES/OWN_STYLE_PRIMARY/gbam_flat_style_reference_sheet.png`.
 The toy-box characters and `art/reference/redhead-girl-reference.png` are historical art references,
 not designs to recreate for launch.
 
@@ -22,20 +23,21 @@ not designs to recreate for launch.
 
 ## Pieces (split by whole facial feature)
 Blank base (not draggable): shared rounded-square head, ears with inner details, neck, coral cheek
-patches, portrait outfit and mint background. Ears and cheeks remain separate editable assets, but
+patches, portrait outfit and flat panel background (yellow for the boy, coral for the girl).
+Ears and cheeks remain separate editable assets, but
 stay on the blank base. No eyes, eyebrows, nose, mouth or hair remain in the blank render.
 
 **Boy — `CHR_M_001_COILS_YELLOW` (7 draggable pieces)**
 
 | Piece ID | Includes |
 |---|---|
-| `eye_l` | left eye white + brown iris + dark pupil + catchlight |
-| `eye_r` | right eye white + brown iris + dark pupil + catchlight |
+| `eye_l` | left flat almond eye white + dark outline + single dark pupil |
+| `eye_r` | right flat almond eye white + dark outline + single dark pupil |
 | `brow_l` | left thick curved eyebrow |
 | `brow_r` | right thick curved eyebrow |
-| `nose` | soft geometric wedge |
+| `nose` | rounded flat skin shape + curved contour + one paint stroke |
 | `mouth` | wide happy smile + lip edge + interior + upper teeth + tongue |
-| `hair_coils` | scalp cap + all short, dense coil masses |
+| `hair_coils` | flat coiled-hair silhouette + short curved painted strokes |
 
 Skin: `SKIN_WARM_MEDIUM`. Yellow hoodie shoulders are a fixed portrait accent.
 
@@ -43,32 +45,40 @@ Skin: `SKIN_WARM_MEDIUM`. Yellow hoodie shoulders are a fixed portrait accent.
 
 | Piece ID | Includes |
 |---|---|
-| `eye_l` | left eye white + brown iris + dark pupil + catchlight |
-| `eye_r` | right eye white + brown iris + dark pupil + catchlight |
+| `eye_l` | left flat almond eye white + dark outline + single dark pupil |
+| `eye_r` | right flat almond eye white + dark outline + single dark pupil |
 | `brow_l` | left thick curved eyebrow |
 | `brow_r` | right thick curved eyebrow |
-| `nose` | soft geometric wedge |
+| `nose` | rounded flat skin shape + curved contour + one paint stroke |
 | `mouth` | wide happy smile + lip edge + interior + upper teeth + tongue |
-| `hair_cap` | swept scalp cap + shallow hair ridges |
+| `hair_cap` | swept flat hair silhouette + tapered paint strokes |
 | `hair_puff_l` | left puff bun + its small pink flower |
 | `hair_puff_r` | right puff bun + its small pink flower |
 
 Skin: `SKIN_WARM_BROWN`. Green overall straps/bib and coral shirt shoulders are fixed portrait accents.
-Left/right IDs follow the kit's anchor labels (L = negative X).
+Left/right IDs follow the kit's labels (L = the left side of the portrait).
 Each piece is one collection with a stable `piece_id`; all its component objects travel together.
 
 ## Launch scope (decided)
 - **v1 launches with 2 characters**, in the **GBAM style** (see below): `CHR_M_001_COILS_YELLOW` (boy,
   short coils, yellow hoodie) and `CHR_F_001_PUFFS_OVERALLS` (girl, two puff buns, green overalls).
   The earlier redhead-girl/clown painted-paper scenes and scripts in `art/blender/`, plus their
-  portrait renders, are superseded and kept only for history. New `gbam-*` files are the active art.
+  portrait renders, are kept for history; their flat illustration technique is reused.
+  The GBAM clay-style scenes/renders without `-flat` are also historical and must not be
+  overwritten or developed further. Only the new `gbam-*-flat` artwork is active.
 
-## Art style (decided): GBAM
-- The full modular 3D character system supplied in `art/gbam_kit/` replaces the flat cut-paper style.
-- Read `art/gbam_kit/00_START_HERE/README.md` and `02_STYLE_SYSTEM/STYLE_BIBLE.md` first.
-- Its modular face/hair/headwear parts map directly onto our draggable pieces — even better than the
-  original flat art, since GBAM was designed to swap eyes/nose/mouth/hair/headwear independently.
-- Game still only needs **front-facing rendered PNGs per piece**, not the full rigged 3D model in-engine.
+## Art style (corrected): flat painted GBAM illustration
+- **Flat gouache/poster-style illustration, not 3D clay.** The owner's flat reference sheet above
+  takes precedence over the kit's earlier 3D material, mesh and lighting instructions.
+- Keep GBAM's character designs, African-led diversity, warm brown palette, oversized head/eyes,
+  soft shapes and modular facial features.
+- Use flat colour blocks, dark brown outlines, visible paint grain and tapered brush marks.
+  Hair is a graphic silhouette with curved/hatching strokes, never shaded spheres.
+- Eyes have flat whites and one dark pupil: no iris dome, catchlight dot or specular reflection.
+  Noses use at most two painted accents. Mouths are broad flat shapes with visible teeth.
+- Blender is an illustration workshop: shallow editable Bezier layers, using the original
+  redhead/clown helpers with fully unlit pigment materials. No studio shading, gradients or lights.
+- The game needs **front-facing rendered PNGs per piece**, not 3D models.
 
 ## Modes (open question)
 - **Match mode** — recreate the example exactly (pieces have a correct slot).
@@ -89,25 +99,24 @@ Blender (`art/blender/`) → render each piece to its own transparent PNG + a JS
 → imported into Godot. See `.github/skills/blender-art-pipeline/SKILL.md`.
 
 Current source: `art/blender/scripts/create_gbam_character.py -- --character all` (run with Blender).
-It runs the kit's scene bootstrap, then builds the shared head, required face modules, and coils/puffs
-in separate passes. Both characters use the identical 0.440 m wide × 0.500 m high × 0.400 m deep,
-4,056-quad neutral head mesh with different palette materials.
+It reuses `create_character.py` for Bezier shapes, ovals, tapered brush strokes and procedural
+noise-ramp pigment. Both characters share the same flat head outline with different palette colours.
 
 | Character | Editable scene | Complete portrait | Blank base |
 |---|---|---|---|
-| Boy | `art/blender/gbam-boy-portrait.blend` | `art/renders/gbam-boy-portrait.png` | `art/renders/gbam-boy-blank.png` |
-| Girl | `art/blender/gbam-girl-portrait.blend` | `art/renders/gbam-girl-portrait.png` | `art/renders/gbam-girl-blank.png` |
+| Boy | `art/blender/gbam-boy-portrait-flat.blend` | `art/renders/gbam-boy-portrait-flat.png` | `art/renders/gbam-boy-blank-flat.png` |
+| Girl | `art/blender/gbam-girl-portrait-flat.blend` | `art/renders/gbam-girl-portrait-flat.png` | `art/renders/gbam-girl-blank-flat.png` |
 
-Presentation uses the kit's 1024×1024 canvas, a shared front orthographic camera, matte Principled
-materials and a soft three-light studio. The `EYE_02_WIDE` variant is 20% wider and 10% taller than
-the canonical round globe, keeping the kit's iris/pupil sizes and eye anchors for phone readability.
-The slight brow/cheek/flower offsets are intentional asymmetry.
+The canvas is 1502×1600, matching the original illustration pipeline, with a shared front
+orthographic camera. Pigment shaders feed directly into emission: colour variations are paint
+texture, not 3D lighting. The owner reference and both scripts are embedded in each saved scene.
 
-This pass is a **portrait prototype**, not the complete kit asset library: only the face and hair
-variants needed by these two characters are built. Full-body modelling, finished clothing assets,
-facial deformation loops, rigging, UV/LOD work, and individual transparent piece exports are deferred.
-No Godot code yet. The saved scenes contain the complete characters; hiding `02_FACE` and
-`03_HAIR_HEADWEAR` produces the blank bases without changing camera framing.
+Each draggable collection has a `piece_id` and `draggable = True`. Hide those collections to
+produce the blank base; head, ears, neck, cheeks and clothing remain, with identical camera framing.
+The generator reopens both saved scenes and checks flat-only materials, piece grouping and PNG sizes.
+Use `--verify-only` to repeat those checks without rebuilding.
+Individual transparent piece exports and Godot code are not built yet. Rigging/full-body 3D work
+is not part of this corrected illustration pipeline.
 
 ## Open questions
 - Target age range?

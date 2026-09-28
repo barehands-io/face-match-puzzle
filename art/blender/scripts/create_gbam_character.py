@@ -1,585 +1,390 @@
-"""Build GBAM portrait prototypes using the supplied kit's passes 1-4.
+"""Render the GBAM launch pair as flat painted illustrations, not 3D portraits.
 
 Blender --background --factory-startup --python this_file.py -- --character all
-Use --no-render to save scenes only; --verify-only reopens and checks saved files.
-Rigging, deformation topology, full bodies and game exports are later passes.
+Use --verify-only to check saved flat scenes. Historical 3D outputs are untouched.
 """
 
 import argparse
-import csv
-import hashlib
 import math
 from pathlib import Path
-import random
-import runpy
 import sys
 
 import bpy
 from mathutils import Vector
 
 
-ROOT = Path(__file__).resolve().parents[3]
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import create_character as art
+
+
+ROOT = HERE.parents[2]
 KIT = ROOT / "art/gbam_kit"
-OUTPUT = ROOT / "art/blender"
-RENDERS = ROOT / "art/renders"
-CHARACTERS = {
-    "boy": ("CHR_M_001_COILS_YELLOW", "SKIN_WARM_MEDIUM"),
-    "girl": ("CHR_F_001_PUFFS_OVERALLS", "SKIN_WARM_BROWN"),
-}
+REFERENCE = KIT / "01_REFERENCE_IMAGES/OWN_STYLE_PRIMARY/gbam_flat_style_reference_sheet.png"
 PALETTE = dict(line.split() for line in
                (KIT / "07_MATERIALS/palette.hex.txt").read_text().splitlines() if line.strip())
-with (KIT / "02_STYLE_SYSTEM/ANCHORS.csv").open(newline="") as source:
-    ANCHORS = {row["Anchor"]: tuple(float(row[key]) for key in ("X_m", "Y_m", "Z_m"))
-               for row in csv.DictReader(source)}
-HEAD_SIZE = (0.440, 0.400, 0.500)
+CHARACTERS = {
+    "boy": ("CHR_M_001_COILS_YELLOW", "SKIN_WARM_MEDIUM", "YELLOW"),
+    "girl": ("CHR_F_001_PUFFS_OVERALLS", "SKIN_WARM_BROWN", "CORAL"),
+}
+BASE = "01 - Head ears neck"
+CHEEKS = "02 - Flat cheek blush"
+OUTFIT = "03 - Fixed portrait outfit"
 
 
-def srgb(hex_color):
-    values = [int(hex_color.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4)]
-    return tuple(v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
-                 for v in values) + (1,)
+def piece(name, identifier):
+    group = art.collection(name)
+    group["piece_id"] = identifier
+    group["draggable"] = True
+    return name
 
 
-def material(key, roughness=0.67, hex_color=None):
-    mat = bpy.data.materials.new("MAT_" + key)
-    mat.diffuse_color = srgb(hex_color or PALETTE[key])
-    mat.use_nodes = True
-    shader = mat.node_tree.nodes.get("Principled BSDF")
-    shader.inputs["Base Color"].default_value = mat.diffuse_color
-    shader.inputs["Roughness"].default_value = roughness
-    shader.inputs["Metallic"].default_value = 0
+def paint(key, grain=0.18, hex_color=None):
+    mat = art.pigment("PAINT_" + key, (hex_color or PALETTE[key]).lstrip("#"),
+                      grain=grain, emission_mix=1.0)
+    # Fully emission-driven pigment: grain, but no lighting gradients or specular.
+    nodes = mat.node_tree.nodes
+    output = next(node for node in nodes if node.type == "OUTPUT_MATERIAL")
+    emission = next(node for node in nodes if node.type == "EMISSION")
+    mat.node_tree.links.new(emission.outputs[0], output.inputs["Surface"])
+    for node in list(nodes):
+        if node.type in ("MIX_SHADER", "BSDF_DIFFUSE"):
+            nodes.remove(node)
+    next(node for node in nodes if node.type == "TEX_NOISE").inputs["Scale"].default_value = 110
     return mat
 
 
-def group(name, parent, piece_id=None):
-    coll = bpy.data.collections.new(name)
-    bpy.data.collections[parent].children.link(coll)
-    coll["draggable"] = piece_id is not None
-    if piece_id:
-        coll["piece_id"] = piece_id
-    return coll
+def outlined(name, path, mat, z, group, ink, center, expansion=1.025):
+    edge = art.shape(name + " - dark painted edge", path, ink, z, group, thickness=0.005)
+    pivot = Vector(art.position(*center))
+    for spline in edge.data.splines:
+        for control in spline.bezier_points:
+            control.co = pivot + (control.co - pivot) * expansion
+            control.handle_left = pivot + (control.handle_left - pivot) * expansion
+            control.handle_right = pivot + (control.handle_right - pivot) * expansion
+    return art.shape(name, path, mat, z + 0.012, group, thickness=0.005)
 
 
-def put(obj, name, coll, mat=None):
-    obj.name = name
-    for previous in list(obj.users_collection):
-        previous.objects.unlink(obj)
-    coll.objects.link(obj)
-    if mat:
-        obj.data.materials.append(mat)
-    obj["gbam_fit_head"] = "HEAD_V1"
-    obj["gbam_variant_id"] = name
-    obj["gbam_age_group"] = "child_portrait"
-    obj["gbam_lod"] = "PROTOTYPE"
-    obj["gbam_part_type"] = coll.name
-    return obj
+def curl(name, x, y, radius, mat, z, group):
+    art.brush(name, (x - radius, y + radius * 0.25),
+              [((x - radius * 1.2, y - radius), (x + radius, y - radius),
+                (x + radius * 0.8, y + radius * 0.2)),
+               ((x + radius * 0.6, y + radius * 0.8), (x, y + radius * 0.7),
+                (x, y + radius * 0.2))],
+              7, mat, z, group, roughness=1.4)
 
 
-def smooth(obj):
-    for face in obj.data.polygons:
-        face.use_smooth = True
-    return obj
-
-
-def ellipsoid(name, center, size, mat, coll, segments=32, rings=20):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=rings, location=center)
-    obj = bpy.context.object
-    for vert in obj.data.vertices:
-        vert.co.x *= size[0] / 2
-        vert.co.y *= size[1] / 2
-        vert.co.z *= size[2] / 2
-    return smooth(put(obj, name, coll, mat))
-
-
-def tube(name, points, radius, mat, coll, cyclic=False):
-    curve = bpy.data.curves.new(name, "CURVE")
-    curve.dimensions = "3D"
-    curve.resolution_u = 16
-    curve.bevel_depth = radius
-    curve.bevel_resolution = 4
-    spline = curve.splines.new("BEZIER")
-    spline.bezier_points.add(len(points) - 1)
-    spline.use_cyclic_u = cyclic
-    for control, point in zip(spline.bezier_points, points):
-        control.co = point
-        control.handle_left_type = "AUTO"
-        control.handle_right_type = "AUTO"
-    obj = bpy.data.objects.new(name, curve)
-    coll.objects.link(obj)
-    return put(obj, name, coll, mat)
-
-
-def plaque(name, outline, depth, mat, coll, bevel=0.002, thickness=0.003):
-    """Rounded, shallow face module; outline is authored in head-local X/Z."""
-    curve = bpy.data.curves.new(name, "CURVE")
-    curve.dimensions = "2D"
-    curve.resolution_u = 24
-    curve.fill_mode = "BOTH"
-    curve.extrude = thickness / 2
-    curve.bevel_depth = bevel
-    curve.bevel_resolution = 4
-    spline = curve.splines.new("BEZIER")
-    spline.bezier_points.add(len(outline) - 1)
-    spline.use_cyclic_u = True
-    for control, (x, z) in zip(spline.bezier_points, outline):
-        control.co = (x, z, 0)
-        control.handle_left_type = "AUTO"
-        control.handle_right_type = "AUTO"
-    obj = bpy.data.objects.new(name, curve)
-    coll.objects.link(obj)
-    obj.rotation_euler.x = math.pi / 2
-    obj.location.y = depth
-    return put(obj, name, coll, mat)
-
-
-def front_y(x, z):
-    taper = 1 - 0.13 * max(0, -z / 0.25) ** 1.3
-    return -0.2 * max(0.001, 1 - abs(x / (0.22 * taper)) ** 3.2
-                     - abs(z / 0.25) ** 3.2) ** (1 / 3.2)
-
-
-def build_head(mat):
-    """One deterministic quad cage, shared unchanged by both skin variants."""
-    coll = bpy.data.collections["01_BASE"]
-    bpy.ops.mesh.primitive_cube_add(size=2)
-    head = bpy.context.object
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.subdivide(number_cuts=25)
-    bpy.ops.object.mode_set(mode="OBJECT")
-    for vert in head.data.vertices:
-        point = vert.co
-        factor = sum(abs(v) ** 3.2 for v in point) ** (1 / 3.2)
-        point /= factor
-        taper = 1 - 0.13 * max(0, -point.z) ** 1.3
-        point.x *= 0.22 * taper
-        point.y *= 0.20
-        point.z *= 0.25
-    smooth(put(head, "MESH_HEAD_BASE", coll, mat))
-    head.data.name = "HEAD_V1_SHARED_NEUTRAL_QUADS"
-    head["canonical_dimensions_m"] = list(HEAD_SIZE)
-    head["topology_status"] = "Portrait cage only; facial deformation loops deferred."
-    head["geometry_sha256"] = head_digest(head)
+def build_base(character, m):
+    outlined("Warm brown neck",
+             """M 637 1165 C 695 1191 808 1197 867 1174
+             L 891 1458 C 833 1520 666 1507 616 1440 Z""",
+             m["skin"], 0.02, BASE, m["ink"], (751, 1330))
+    art.shape("Neck - single painted shadow",
+              """M 638 1205 C 695 1260 805 1281 872 1225
+              L 879 1309 C 804 1370 711 1361 632 1327 Z""",
+              m["shade"], 0.04, BASE, thickness=0.003)
+    for side, x, y in (("L", 370, 863), ("R", 1136, 850)):
+        art.oval("Ear " + side + " outline", x, y, 92, 113, m["ink"], 0.05, BASE, organic=0.025)
+        art.oval("Ear " + side, x, y, 84, 104, m["skin"], 0.07, BASE, organic=0.025)
+        sign = -1 if side == "L" else 1
+        art.brush("Ear " + side + " painted C", (x + sign * 24, y + 52),
+                  [((x + sign * 67, y + 7), (x + sign * 34, y - 71), (x - sign * 24, y - 38))],
+                  23, m["shade"], 0.09, BASE, roughness=1.4)
+    head = outlined("Shared rounded face",
+                     """M 448 491 C 566 428 909 420 1034 490
+                     C 1120 536 1140 691 1125 891
+                     C 1113 1097 1015 1227 809 1280
+                     C 706 1314 506 1228 430 1105
+                     C 370 1008 369 849 379 704
+                     C 382 608 399 531 448 491 Z""",
+                     m["skin"], 0.12, BASE, m["ink"], (750, 850), expansion=1.018)
+    for side, x, y in (("L", 484, 985), ("R", 1030, 969)):
+        art.oval("Flat coral cheek " + side, x, y, 68, 61, m["CHEEK_CORAL"],
+                 0.15, CHEEKS, organic=0.025, thickness=0.003)
+    # Short, low-contrast pigment marks give a painted surface without sculpted shading.
+    for i in range(55):
+        x = art.RNG.uniform(459, 1038)
+        y = art.RNG.uniform(545, 1110)
+        art.brush(f"Skin dry brush {i:02d}", (x, y),
+                  [((x + 4, y + 2), (x + 10, y - 1), (x + 18, y + 3))],
+                  art.RNG.uniform(1, 3), m["skin_grain"], 0.141, BASE, roughness=1.5)
+    if character == "boy":
+        outlined("Yellow hoodie shoulders",
+                 """M 638 1355 C 466 1369 376 1435 298 1614
+                 L 1240 1614 C 1181 1435 1040 1362 869 1351
+                 C 813 1412 699 1415 638 1355 Z""",
+                 m["YELLOW"], 0.18, OUTFIT, m["ink"], (751, 1480))
+        outlined("Hood - flat cream lining",
+                 """M 641 1353 C 571 1327 494 1359 493 1400
+                 C 501 1463 625 1493 748 1495
+                 C 878 1497 1001 1459 1017 1403
+                 C 1014 1355 933 1321 871 1347
+                 C 880 1417 643 1420 641 1353 Z""",
+                 m["CREAM"], 0.205, OUTFIT, m["ink"], (751, 1414))
+        for x in (662, 846):
+            art.brush("Hood drawstring " + str(x), (x, 1470),
+                      [((x - 3, 1510), (x + 4, 1560), (x - 1, 1590))],
+                      12, m["CREAM"], 0.235, OUTFIT, taper=False)
+    else:
+        outlined("Coral shirt shoulders",
+                 """M 636 1355 C 454 1359 377 1430 305 1610
+                 L 1215 1610 C 1165 1439 1039 1363 871 1351
+                 C 824 1408 704 1419 636 1355 Z""",
+                 m["CORAL"], 0.18, OUTFIT, m["ink"], (751, 1480))
+        outlined("Green overall bib",
+                 "M 524 1467 L 987 1467 L 1010 1610 L 507 1610 Z",
+                 m["OLIVE"], 0.20, OUTFIT, m["ink"], (751, 1550))
+        for side, x in (("L", 548), ("R", 944)):
+            outlined("Overall strap " + side,
+                     f"M {x - 28} 1368 L {x + 22} 1380 L {x + 12} 1545 L {x - 41} 1542 Z",
+                     m["OLIVE"], 0.22, OUTFIT, m["ink"], (x, 1460))
+            art.oval("Overall button " + side, x - 12, 1522, 23, 23,
+                     m["YELLOW"], 0.245, OUTFIT, thickness=0.003)
     return head
 
 
-def head_digest(head):
-    return hashlib.sha256(
-        repr([tuple(round(v, 8) for v in vertex.co) for vertex in head.data.vertices]).encode()
-    ).hexdigest()
+def build_face(m):
+    for side, x, y in (("L", 592, 817), ("R", 916, 800)):
+        group = piece("10 - Eye " + side, "eye_" + side.lower())
+        path = f"""M {x - 107} {y + 48}
+            C {x - 133} {y - 65} {x - 63} {y - 131} {x + 12} {y - 116}
+            C {x + 79} {y - 108} {x + 117} {y - 37} {x + 102} {y + 49}
+            C {x + 30} {y + 40} {x - 31} {y + 38} {x - 107} {y + 48} Z"""
+        outlined("Flat almond eye " + side, path, m["EYE_WHITE"], 0.20, group,
+                 m["ink"], (x, y - 25), expansion=1.047)
+        art.oval("Single dark pupil " + side, x + 29, y - 16, 49, 62,
+                 m["ink"], 0.224, group, organic=0.013, thickness=0.003)
+        brow = piece("11 - Brow " + side, "brow_" + side.lower())
+        art.shape("Painted eyebrow " + side,
+                  f"""M {x - 99} {y - 180} C {x - 61} {y - 208} {x + 33} {y - 226} {x + 71} {y - 193}
+                  L {x + 78} {y - 161} C {x + 10} {y - 180} {x - 52} {y - 160} {x - 100} {y - 154} Z""",
+                  m["ink"], 0.21, brow, thickness=0.003)
+    nose = piece("12 - Nose", "nose")
+    art.shape("Rounded flat nose",
+              """M 751 817 C 776 859 778 907 752 944
+              C 727 978 692 993 715 1020
+              C 752 1057 840 1026 851 991
+              C 859 964 831 942 810 929
+              C 789 914 781 851 751 817 Z""",
+              m["skin"], 0.235, nose, thickness=0.004)
+    art.brush("Nose - curved dark contour", (750, 816),
+              [((792, 901), (741, 950), (714, 979)),
+               ((677, 1028), (787, 1051), (846, 1000))],
+              12, m["shade"], 0.25, nose, roughness=1.1)
+    art.brush("Nose - one ochre paint stroke", (758, 918),
+              [((748, 950), (718, 977), (736, 1007))],
+              21, m["nose_light"], 0.253, nose, roughness=1.7)
+    mouth = piece("13 - Mouth", "mouth")
+    outlined("Wide open smile",
+             """M 626 1100 C 695 1078 849 1078 924 1062
+             C 951 1099 899 1183 821 1206
+             C 741 1230 648 1179 626 1100 Z""",
+             m["MOUTH_DARK"], 0.21, mouth, m["shade"], (778, 1137), expansion=1.07)
+    art.shape("Single ivory teeth block",
+              """M 644 1104 C 725 1092 839 1093 908 1079
+              C 910 1100 903 1114 889 1123
+              C 825 1140 717 1143 662 1129 Z""",
+              m["EYE_WHITE"], 0.236, mouth, thickness=0.003)
+    for x in (699, 753, 811, 867):
+        art.brush("Tooth division " + str(x), (x, 1101),
+                  [((x, 1110), (x + 1, 1123), (x + 2, 1134))],
+                  3, m["shade"], 0.244, mouth, taper=False, roughness=0.25)
+    art.shape("Flat warm tongue",
+              """M 735 1180 C 764 1149 817 1155 850 1179
+              C 814 1204 771 1205 735 1180 Z""",
+              m["CHEEK_CORAL"], 0.239, mouth, thickness=0.003)
 
 
-def build_base(skin, m):
-    head = build_head(skin)
-    base = bpy.data.collections["01_BASE"]
-    ellipsoid("MESH_NECK_BASE", (0, 0.025, -0.285), (0.115, 0.125, 0.155), skin, base)
-    ears = group("BASE_EARS_01", "01_BASE")
-    cheeks = group("BASE_CHEEKS_01", "01_BASE")
-    for side, sign in (("L", -1), ("R", 1)):
-        x, y, z = ANCHORS["EAR_" + side]
-        ellipsoid("MESH_EAR_" + side, (x, y, z), (0.095, 0.035, 0.115), skin, ears)
-        points = [(x + sign * dx, -0.030, z + dz) for dx, dz in (
-            (0.013, -0.029), (0.029, -0.017), (0.031, 0.015),
-            (0.016, 0.032), (-0.004, 0.020))]
-        tube("MESH_EAR_INNER_C_" + side, points, 0.006, m["ear"], ears)
-        ellipsoid("MESH_EAR_TRAGUS_" + side, (x + sign * 0.002, -0.034, z - 0.012),
-                  (0.024, 0.014, 0.024), skin, ears)
-        cx, _, cz = ANCHORS["CHEEK_" + side]
-        cz += 0.0015 if sign > 0 else 0
-        # Project the thin patch onto the head instead of floating a flat disc.
-        vertices = [(cx, front_y(cx, cz) - 0.002, cz)]
-        rings, count = 5, 48
-        for ring in range(1, rings + 1):
-            for i in range(count):
-                angle = math.tau * i / count
-                x = cx + 0.036 * ring / rings * math.cos(angle)
-                z = cz + 0.033 * ring / rings * math.sin(angle)
-                vertices.append((x, front_y(x, z) - 0.002, z))
-        faces = [(0, 1 + i, 1 + (i + 1) % count) for i in range(count)]
-        for ring in range(rings - 1):
-            a = 1 + ring * count
-            b = a + count
-            for i in range(count):
-                j = (i + 1) % count
-                faces.append((a + i, b + i, b + j, a + j))
-        mesh = bpy.data.meshes.new("CHEEK_PATCH_" + side)
-        mesh.from_pydata(vertices, [], faces)
-        mesh.update()
-        obj = bpy.data.objects.new("MESH_CHEEK_" + side, mesh)
-        cheeks.objects.link(obj)
-        smooth(put(obj, obj.name, cheeks, m["CHEEK_CORAL"]))
-    return head
-
-
-def build_face(skin, m):
-    for side, sign in (("L", -1), ("R", 1)):
-        eye = group("EYE_02_WIDE_" + side, "02_FACE", "eye_" + side.lower())
-        x, _, z = ANCHORS["EYE_" + side]
-        # Wide variant: +20% width/+10% height over the canonical round globe.
-        ellipsoid("MESH_EYE_" + side, (x, -0.197, z),
-                  (0.0936, 0.048, 0.0858), m["EYE_WHITE"], eye)
-        ellipsoid("MESH_IRIS_" + side, (x + 0.003, -0.220, z + 0.001),
-                  (0.038, 0.009, 0.038), m["iris"], eye)
-        ellipsoid("MESH_PUPIL_" + side, (x + 0.003, -0.225, z + 0.001),
-                  (0.020, 0.005, 0.020), m["HAIR_NEAR_BLACK"], eye)
-        ellipsoid("MESH_CATCHLIGHT_" + side, (x - 0.003, -0.229, z + 0.008),
-                  (0.009, 0.004, 0.009), m["EYE_WHITE"], eye)
-        brow = group("BROW_01_" + side, "02_FACE", "brow_" + side.lower())
-        offset = 0.003 if side == "R" else 0
-        points = [(x - 0.043, -0.192, 0.106 + offset),
-                  (x - 0.010, -0.203, 0.121 + offset),
-                  (x + 0.030, -0.197, 0.117 + offset),
-                  (x + 0.043, -0.192, 0.111 + offset)]
-        tube("MESH_BROW_" + side, points, 0.009, m["HAIR_NEAR_BLACK"], brow)
-    nose = group("NOSE_02_WEDGE", "02_FACE", "nose")
-    bpy.ops.mesh.primitive_cube_add(size=1)
-    obj = bpy.context.object
-    for vert in obj.data.vertices:
-        x, y, z = vert.co
-        width = 0.036 if z > 0 else 0.075
-        vert.co = (x * width, y * 0.060 + (0.016 if z > 0 else 0),
-                   z * 0.110)
-    obj.location = (0, -0.215, -0.013)
-    put(obj, "MESH_NOSE_02_WEDGE", nose, skin)
-    bevel = obj.modifiers.new("Soft graphic wedge corners", "BEVEL")
-    bevel.width = 0.016
-    bevel.segments = 5
-    obj.modifiers.new("Weighted corner normals", "WEIGHTED_NORMAL")
-    smooth(obj)
-    mouth = group("MOUTH_03_OPEN_HAPPY", "02_FACE", "mouth")
-    outline = [(-0.085, -0.084), (-0.044, -0.088), (0.008, -0.090),
-               (0.080, -0.081), (0.075, -0.113), (0.040, -0.145),
-               (-0.015, -0.148), (-0.061, -0.126)]
-    plaque("MESH_MOUTH_LIP", outline, -0.195, m["lip"], mouth, bevel=0.005)
-    inset = [(x * 0.92, -0.111 + (z + 0.111) * 0.85) for x, z in outline]
-    plaque("MESH_MOUTH_INTERIOR", inset, -0.202, m["MOUTH_DARK"], mouth)
-    teeth = [(-0.064, -0.091), (-0.028, -0.094), (0.023, -0.094),
-             (0.064, -0.088), (0.057, -0.105), (0.011, -0.111),
-             (-0.031, -0.110), (-0.059, -0.103)]
-    plaque("MESH_UPPER_TEETH_BLOCK", teeth, -0.208, m["EYE_WHITE"], mouth, bevel=0.0015)
-    for i, x in enumerate((-0.027, 0.008, 0.041)):
-        tube(f"MESH_TOOTH_DIVISION_{i}", [(x, -0.212, -0.095), (x, -0.212, -0.108)],
-             0.00065, m["CREAM"], mouth)
-    plaque("MESH_TONGUE", [(-0.026, -0.138), (-0.012, -0.127), (0.017, -0.128),
-                          (0.032, -0.138), (0.005, -0.143)],
-           -0.208, m["CORAL"], mouth, bevel=0.001)
-
-
-def signed_power(value, exponent):
-    return math.copysign(abs(value) ** exponent, value)
-
-
-def scalp_point(phi, theta):
-    return Vector((0.225 * math.sin(phi) ** 0.625 * signed_power(math.sin(theta), 0.625),
-                   -0.207 * math.sin(phi) ** 0.625 * signed_power(math.cos(theta), 0.625),
-                   0.258 * signed_power(math.cos(phi), 0.625)))
-
-
-def scalp_extent(theta):
-    return 1.43 - 0.30 * max(0, math.cos(theta))
-
-
-def build_scalp(coll, m):
-    vertices = [(0, 0, 0.258)]
-    count, rows = 64, 14
-    for row in range(1, rows + 1):
-        for i in range(count):
-            theta = math.tau * i / count
-            maximum = scalp_extent(theta)
-            vertices.append(tuple(scalp_point(maximum * row / rows, theta)))
-    faces = [(0, 1 + (i + 1) % count, 1 + i) for i in range(count)]
-    for row in range(rows - 1):
-        a = 1 + row * count
-        b = a + count
-        for i in range(count):
-            j = (i + 1) % count
-            faces.append((a + i, a + j, b + j, b + i))
-    mesh = bpy.data.meshes.new("HAIR_CAP_SHARED")
-    mesh.from_pydata(vertices, [], faces)
-    mesh.update()
-    obj = bpy.data.objects.new("MESH_HAIR_CAP", mesh)
-    coll.objects.link(obj)
-    smooth(put(obj, obj.name, coll, m["HAIR_NEAR_BLACK"]))
-    solidify = obj.modifiers.new("Scalp shell", "SOLIDIFY")
-    solidify.thickness = 0.004
-
-
-def clump(name, center, size, coll, m, rng):
-    obj = ellipsoid(name, center, size, m, coll, segments=20, rings=12)
-    phase = rng.uniform(0, math.tau)
-    for vert in obj.data.vertices:
-        p = vert.co
-        angle = math.atan2(p.y / size[1], p.x / size[0])
-        latitude = p.z / (size[2] / 2)
-        p *= 1 + 0.065 * math.cos(5 * angle + phase) * (1 - latitude * latitude)
-    return obj
+def hair_mass(name, cx, cy, rx, ry, group, m):
+    state = art.RNG.getstate()
+    art.oval(name + " dark outline", cx, cy, rx + 7, ry + 7,
+             m["ink"], 0.27, group, organic=0.05)
+    art.RNG.setstate(state)
+    art.oval(name + " flat mass", cx, cy, rx, ry,
+             m["hair"], 0.285, group, organic=0.05)
+    for i in range(65):
+        angle = art.RNG.uniform(0, math.tau)
+        radius = math.sqrt(art.RNG.uniform(0.02, 0.82))
+        x, y = cx + rx * radius * math.cos(angle), cy + ry * radius * math.sin(angle)
+        curl(f"{name} painted coil {i:02d}", x, y, art.RNG.uniform(9, 18),
+             m["ink"] if i % 3 else m["hair_stroke"], 0.31, group)
 
 
 def build_hair(character, m):
-    rng = random.Random(20260928)
     if character == "boy":
-        coll = group("HAIR_COILS_SHORT_01", "03_HAIR_HEADWEAR", "hair_coils")
-        build_scalp(coll, m)
-        for row, count in enumerate((1, 12, 20, 26, 32, 38, 42, 46)):
-            for i in range(count):
-                theta = math.tau * (i + 0.45 * (row % 2)) / count
-                maximum = scalp_extent(theta)
-                phi = 0.01 if row == 0 else maximum * row / 7
-                center = scalp_point(phi, theta)
-                center += Vector((center.x, center.y, center.z)).normalized() * 0.006
-                size = rng.uniform(0.058, 0.066)
-                clump(f"MESH_COIL_{row:02d}_{i:02d}", center,
-                      (size, size * 0.92, size * 0.84), coll,
-                      m["hair_warm"] if i % 5 == 0 else m["HAIR_NEAR_BLACK"], rng)
-    else:
-        cap = group("HAIR_PUFFS_CAP_01", "03_HAIR_HEADWEAR", "hair_cap")
-        build_scalp(cap, m)
+        group = piece("20 - Short coiled hair", "hair_coils")
+        path = """M 389 708 C 327 647 326 531 381 457
+            C 375 395 428 321 509 315 C 559 235 650 245 714 265
+            C 794 204 882 257 923 285 C 1023 253 1088 323 1100 383
+            C 1181 420 1188 509 1159 555 C 1197 621 1143 687 1108 706
+            C 1099 620 1070 546 1016 518 C 968 551 912 547 876 522
+            C 814 571 757 555 716 527 C 646 578 578 549 541 545
+            C 476 576 422 597 389 708 Z"""
+        outlined("Short coils silhouette", path, m["hair"], 0.27, group,
+                 m["ink"], (751, 451), expansion=1.025)
+        # Hand-drawn curls stay inside the silhouette; no individually shaded balls.
+        for row in range(6):
+            for col in range(14):
+                x = 425 + col * 47 + art.RNG.uniform(-9, 9)
+                y = 351 + row * 29 + art.RNG.uniform(-8, 8)
+                if row == 0 and (col < 2 or col > 11):
+                    continue
+                curl(f"Short painted curl {row}_{col}", x, y, art.RNG.uniform(12, 22),
+                     m["ink"] if (row + col) % 3 else m["hair_stroke"], 0.305, group)
         for sign in (-1, 1):
-            for index in range(5):
-                points = []
-                for t in (0, 0.25, 0.5, 0.75, 1):
-                    theta = sign * (0.10 + index * 0.21 + t * 0.24)
-                    points.append(scalp_point(scalp_extent(theta) * (0.18 + t * 0.76), theta))
-                points = [tuple(point + point.normalized() * 0.004) for point in points]
-                tube(f"MESH_SWEPT_HAIR_{sign}_{index}", points, 0.0025,
-                     m["hair_warm"], cap)
-        for side, sign in (("L", -1), ("R", 1)):
-            coll = group("HAIR_PUFF_BUN_" + side, "03_HAIR_HEADWEAR",
-                         "hair_puff_" + side.lower())
-            center = Vector((sign * 0.226, 0.006, 0.223 + (0.006 if sign > 0 else 0)))
-            clump("MESH_PUFF_MASS_" + side, center, (0.231, 0.203, 0.223),
-                  coll, m["HAIR_NEAR_BLACK"], rng)
-            count = 86
-            for i in range(count):
-                z = 1 - 2 * (i + 0.5) / count
-                theta = i * math.pi * (3 - math.sqrt(5))
-                radius = math.sqrt(1 - z * z)
-                delta = Vector((0.103 * radius * math.cos(theta),
-                                0.088 * radius * math.sin(theta), 0.100 * z))
-                size = rng.uniform(0.062, 0.076)
-                clump(f"MESH_PUFF_{side}_COIL_{i:02d}", center + delta,
-                      (size, size * 0.92, size), coll,
-                      m["hair_warm"] if i % 6 == 0 else m["HAIR_NEAR_BLACK"], rng)
-            flower = Vector((sign * 0.211, -0.122, 0.202))
+            for i in range(10):
+                curl(f"Temple curl {sign}_{i}", 751 + sign * (340 + i % 2 * 12),
+                     522 + i * 12, 13, m["ink"], 0.307, group)
+    else:
+        cap = piece("20 - Swept hair cap", "hair_cap")
+        outlined("Swept flat hair",
+                 """M 380 718 C 324 559 410 365 577 333
+                 C 661 312 722 341 754 368 C 811 327 901 310 972 352
+                 C 1120 406 1191 550 1126 700
+                 C 1082 590 1021 537 938 510
+                 C 852 482 796 472 754 456
+                 C 689 472 614 505 548 532 C 465 560 412 627 380 718 Z""",
+                 m["hair"], 0.26, cap, m["ink"], (751, 480))
+        for sign in (-1, 1):
+            for i in range(8):
+                art.brush(f"Swept hair paint {sign}_{i}", (754 + sign * (15 + i * 15), 370 + i * 3),
+                          [((754 + sign * 130, 436), (754 + sign * (280 + i * 4), 453),
+                            (754 + sign * (312 + i * 7), 598 + i * 6))],
+                          6, m["hair_stroke"], 0.287, cap, roughness=2)
+        for side, x, y in (("L", 393, 353), ("R", 1098, 343)):
+            group = piece("21 - Puff and flower " + side, "hair_puff_" + side.lower())
+            hair_mass("Puff " + side, x, y, 187, 181, group, m)
+            fx = x + (87 if side == "L" else -87)
+            fy = y + 111
             for petal in range(5):
-                theta = math.tau * petal / 5
-                offset = Vector((math.sin(theta) * 0.022, 0, math.cos(theta) * 0.022))
-                obj = ellipsoid(f"MESH_FLOWER_{side}_PETAL_{petal}", flower + offset,
-                                (0.020, 0.012, 0.034), m["PINK"], coll)
-                obj.rotation_euler.y = theta
-            ellipsoid("MESH_FLOWER_" + side + "_CENTER", flower + Vector((0, -0.009, 0)),
-                      (0.021, 0.013, 0.021), m["YELLOW"], coll)
-
-
-def build_portrait_clothing(character, m):
-    """Only the visible shoulder colour blocks, not full-body clothing assets."""
-    coll = bpy.data.collections["04_CLOTHING"]
-    coll["portrait_only"] = True
-    if character == "boy":
-        ellipsoid("MESH_TOP_HOODIE_PORTRAIT", (0, 0.025, -0.459),
-                  (0.405, 0.225, 0.310), m["YELLOW"], coll)
-        ellipsoid("MESH_HOOD_BACK_PORTRAIT", (0, 0.052, -0.338),
-                  (0.294, 0.178, 0.155), m["YELLOW"], coll)
-        tube("MESH_HOOD_ROLLED_EDGE",
-             [(-0.135, 0.012, -0.322), (-0.111, -0.086, -0.332),
-              (-0.052, -0.107, -0.351), (0, -0.108, -0.362),
-              (0.062, -0.107, -0.345), (0.130, -0.055, -0.328),
-              (0.119, 0.070, -0.290), (0, 0.102, -0.281),
-              (-0.119, 0.070, -0.290)],
-             0.027, m["YELLOW"], coll, cyclic=True)
-        for sign in (-1, 1):
-            tube(f"MESH_HOOD_DRAWSTRING_{sign}",
-                 [(sign * 0.044, -0.127, -0.357), (sign * 0.048, -0.131, -0.417)],
-                 0.004, m["CREAM"], coll)
-    else:
-        ellipsoid("MESH_CORAL_SHIRT_PORTRAIT", (0, 0.025, -0.459),
-                  (0.405, 0.225, 0.310), m["CORAL"], coll)
-        plaque("MESH_OVERALL_BIB_PORTRAIT",
-               [(-0.106, -0.373), (0.106, -0.373), (0.110, -0.550), (-0.110, -0.550)],
-               -0.102, m["OLIVE"], coll, bevel=0.009, thickness=0.006)
-        for sign in (-1, 1):
-            tube(f"MESH_OVERALL_STRAP_{sign}",
-                 [(sign * 0.118, -0.035, -0.326), (sign * 0.110, -0.088, -0.352),
-                  (sign * 0.082, -0.114, -0.405)],
-                 0.016, m["OLIVE"], coll)
-            ellipsoid(f"MESH_OVERALL_BUTTON_{sign}", (sign * 0.082, -0.133, -0.402),
-                      (0.024, 0.009, 0.024), m["YELLOW"], coll)
-
-
-def setup():
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    scene = bpy.context.scene
-    scene.world = bpy.data.worlds.new("GBAM_MINT_STUDIO")
-    runpy.run_path(str(KIT / "12_BLENDER_AUTOMATION/setup_character_project.py"))
-    studio = bpy.data.collections["07_LIGHTS_CAMERAS"]
-    camera = scene.camera
-    camera.location = (0, -3.2, 0.002)
-    camera.rotation_euler = (Vector((0, 0, 0.002)) - camera.location).to_track_quat("-Z", "Y").to_euler()
-    camera.data.type = "ORTHO"
-    camera.data.ortho_scale = 0.86
-    # The supplied bootstrap leaves light rotations at zero; aim them at the head.
-    for name, energy, height in (("LIGHT_KEY", 160, 1.6),
-                                ("LIGHT_FILL", 65, 0.5), ("LIGHT_RIM", 50, 1.8)):
-        obj = bpy.data.objects[name]
-        obj.location.z = height
-        obj.rotation_euler = (-obj.location).to_track_quat("-Z", "Y").to_euler()
-        obj.data.energy = energy
-    scene.world.use_nodes = True
-    background = scene.world.node_tree.nodes.get("Background")
-    background.inputs["Color"].default_value = (0.65, 0.72, 0.68, 1)
-    background.inputs["Strength"].default_value = 0.35
-    backdrop = material("BACKDROP", 1.0, "#BDDCCD")
-    # Unlit backdrop keeps complete/blank portraits the same clean pastel colour.
-    nodes = backdrop.node_tree.nodes
-    nodes.clear()
-    emission = nodes.new("ShaderNodeEmission")
-    emission.inputs["Color"].default_value = backdrop.diffuse_color
-    output = nodes.new("ShaderNodeOutputMaterial")
-    backdrop.node_tree.links.new(emission.outputs[0], output.inputs["Surface"])
-    plaque("STUDIO_BACKDROP", [(-2, -2), (2, -2), (2, 2), (-2, 2)],
-           0.6, backdrop, studio, bevel=0, thickness=0)
-    scene.render.engine = "CYCLES"
-    scene.cycles.samples = 48
-    scene.cycles.use_denoising = True
-    scene.render.threads_mode = "FIXED"
-    scene.render.threads = 8
-    scene.render.image_settings.color_mode = "RGBA"
-    scene.render.film_transparent = True
-    scene.view_settings.view_transform = "AgX"
-    scene.view_settings.look = "AgX - Medium High Contrast"
-    return scene
+                angle = math.tau * petal / 5
+                art.oval(f"Flower {side} petal {petal}", fx + math.cos(angle) * 27,
+                         fy + math.sin(angle) * 27, 19, 27,
+                         m["PINK"], 0.34, group, organic=0.04, thickness=0.003)
+            art.oval("Flower center " + side, fx, fy, 18, 18,
+                     m["YELLOW"], 0.355, group, thickness=0.003)
 
 
 def build(character):
-    scene = setup()
-    identifier, skin_key = CHARACTERS[character]
-    scene.name = identifier
-    scene["character_id"] = identifier
-    scene["gbam_passes"] = "1 bootstrap; 2 shared head; 3 required face modules; 4 coils/puffs"
-    scene["scope"] = "Portrait prototypes only; full face/hair libraries, rig, UV/LOD/export deferred."
-    scene["blank_base"] = "Hide 02_FACE and 03_HAIR_HEADWEAR; keep ears, cheeks, neck and outfit."
-    scene["eye_variant"] = "EYE_02_WIDE: round globe width x1.20, height x1.10 for phone readability."
-    scene["skin_palette"] = skin_key
-    m = {key: material(key, 0.38 if key == "EYE_WHITE" else
-                       0.74 if key == "HAIR_NEAR_BLACK" else 0.67)
-         for key in ("EYE_WHITE", "HAIR_NEAR_BLACK", "MOUTH_DARK", "CREAM",
-                     "CHEEK_CORAL", "CORAL", "PINK", "YELLOW", "OLIVE")}
-    m["iris"] = material("IRIS_BROWN", 0.36, "#643A22")
-    m["ear"] = material("EAR_INNER", 0.70, "#854023")
-    m["lip"] = material("LIP_WARM", 0.70, "#8F3826")
-    m["hair_warm"] = material("HAIR_WARM", 0.75, "#362017")
-    skin = material(skin_key, 0.67)
-    head = build_base(skin, m)
-    build_face(skin, m)
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    art.COLLECTIONS.clear()
+    art.RNG.seed(96)
+    identifier, skin_key, background_key = CHARACTERS[character]
+    m = {key: paint(key) for key in ("EYE_WHITE", "MOUTH_DARK", "CHEEK_CORAL", "CREAM",
+                                     "YELLOW", "CORAL", "OLIVE", "PINK")}
+    m["skin"] = paint(skin_key, 0.24)
+    m["ink"] = paint("HAIR_NEAR_BLACK", 0.26)
+    m["shade"] = paint("SKIN_DEEP_BROWN", 0.20)
+    m["hair"] = paint("HAIR_FILL", 0.30, "#352016")
+    m["hair_stroke"] = paint("HAIR_STROKE", 0.32, "#573120")
+    m["skin_grain"] = paint("SKIN_DRY_BRUSH", 0.30,
+                             "#C16A38" if character == "boy" else "#A34E29")
+    m["nose_light"] = paint("NOSE_PAINT", 0.20,
+                            "#DB8544" if character == "boy" else "#BD6935")
+    art.shape("Flat colour-block background", "M -5 -5 L 1510 -5 L 1510 1610 L -5 1610 Z",
+              m[background_key], -0.25, "00 - Painted background")
+    head = build_base(character, m)
+    build_face(m)
     build_hair(character, m)
-    build_portrait_clothing(character, m)
-    for script in (Path(__file__), KIT / "12_BLENDER_AUTOMATION/setup_character_project.py"):
+    scene = bpy.context.scene
+    scene.name = identifier + "_FLAT"
+    scene["character_id"] = identifier
+    scene["art_style"] = "Flat painted illustration; no lighting, gradients or specular"
+    scene["reference"] = str(REFERENCE.relative_to(ROOT))
+    scene["piece_count"] = 7 if character == "boy" else 9
+    scene["blank_base"] = "Hide every collection with draggable=True; keep base, cheeks and outfit."
+    scene.camera = art.camera("CAMERA - flat front portrait", (0, 0, 18), (0, 0, 0), 8)
+    image = bpy.data.images.load(str(REFERENCE))
+    image.pack()
+    reference = art.link_object("Packed owner flat reference", None, "90 - Reference")
+    reference.empty_display_type = "IMAGE"
+    reference.data = image
+    art.collection("90 - Reference").hide_render = True
+    art.collection("90 - Reference").hide_viewport = True
+    scene.render.engine = "CYCLES"
+    scene.cycles.samples = 16
+    scene.cycles.use_denoising = False
+    scene.render.threads_mode = "FIXED"
+    scene.render.threads = 8
+    scene.render.resolution_x, scene.render.resolution_y = art.WIDTH, art.HEIGHT
+    scene.render.resolution_percentage = 100
+    scene.render.image_settings.file_format = "PNG"
+    scene.render.image_settings.color_mode = "RGBA"
+    scene.render.film_transparent = True
+    scene.view_settings.view_transform = "Standard"
+    scene.view_settings.look = "None"
+    scene.view_settings.exposure = 0
+    scene.view_settings.gamma = 1
+    scene.render.filepath = str(ROOT / f"art/renders/gbam-{character}-portrait-flat.png")
+    for script in (Path(__file__), HERE / "create_character.py"):
         bpy.data.texts.new(script.name).write(script.read_text())
-    for obj in bpy.context.selected_objects:
-        obj.select_set(False)
     head.select_set(True)
     bpy.context.view_layer.objects.active = head
     for screen in bpy.data.screens:
         for area in screen.areas:
             if area.type == "VIEW_3D":
                 area.spaces.active.region_3d.view_perspective = "CAMERA"
-                area.spaces.active.overlay.show_overlays = False
-    scene.render.filepath = str(RENDERS / f"gbam-{character}-portrait.png")
     scene["object_count"] = len(scene.objects)
     scene["collection_count"] = len(bpy.data.collections)
-    bpy.context.view_layer.update()
     return scene
 
 
 def verify(character):
     scene = bpy.context.scene
     assert scene["character_id"] == CHARACTERS[character][0]
-    assert scene.unit_settings.system == "METRIC"
-    assert scene.unit_settings.scale_length == 1
-    assert (scene.render.resolution_x, scene.render.resolution_y) == (1024, 1024)
-    assert scene.render.resolution_percentage == 100
-    assert scene.camera.data.type == "ORTHO"
-    assert abs(scene.camera.data.ortho_scale - 0.86) < 1e-6
     assert len(scene.objects) == scene["object_count"]
     assert len(bpy.data.collections) == scene["collection_count"]
-    head = bpy.data.objects["MESH_HEAD_BASE"]
-    with (KIT / "02_STYLE_SYSTEM/DIMENSIONS.csv").open(newline="") as source:
-        dimensions = next(row for row in csv.DictReader(source)
-                          if row["Asset/feature"] == "Base head")
-    assert HEAD_SIZE == tuple(float(dimensions[key]) for key in
-                              ("Width_m", "Depth_or_thickness_m", "Height_m"))
-    assert all(abs(value - target) < 0.001 for value, target in zip(head.dimensions, HEAD_SIZE))
-    assert 3000 <= len(head.data.polygons) <= 6000
-    assert all(len(poly.vertices) == 4 for poly in head.data.polygons)
-    assert head_digest(head) == head["geometry_sha256"]
-    pieces = {coll["piece_id"]: coll for coll in bpy.data.collections if coll.get("draggable")}
+    assert not any(obj.type in ("MESH", "LIGHT") for obj in scene.objects)
+    assert (scene.render.resolution_x, scene.render.resolution_y) == (1502, 1600)
+    assert scene.camera.data.type == "ORTHO"
+    assert scene.view_settings.view_transform == "Standard"
+    pieces = [coll for coll in bpy.data.collections if coll.get("draggable")]
     expected = {"eye_l", "eye_r", "brow_l", "brow_r", "nose", "mouth"}
     expected |= {"hair_coils"} if character == "boy" else {"hair_cap", "hair_puff_l", "hair_puff_r"}
-    assert set(pieces) == expected, set(pieces)
-    for coll in pieces.values():
-        assert len(coll.objects) > 0
+    assert {coll["piece_id"] for coll in pieces} == expected
+    for coll in pieces:
+        assert not coll.hide_render and len(coll.objects) > 0
         assert all(len(obj.users_collection) == 1 for obj in coll.objects)
+    for mat in bpy.data.materials:
+        if not mat.name.startswith("PAINT_"):
+            continue
+        nodes = mat.node_tree.nodes
+        output = next(node for node in nodes if node.type == "OUTPUT_MATERIAL")
+        assert output.inputs["Surface"].links[0].from_node.type == "EMISSION"
+        assert not any(node.type.startswith("BSDF") for node in nodes)
     for side in ("L", "R"):
-        assert len(pieces["eye_" + side.lower()].objects) == 4
-        assert bpy.data.objects["MESH_CHEEK_" + side].users_collection[0].name == "BASE_CHEEKS_01"
-        eye = bpy.data.objects["MESH_EYE_" + side]
-        anchor = ANCHORS["EYE_" + side]
-        assert abs(eye.location.x - anchor[0]) < 1e-6
-        assert abs(eye.location.z - anchor[2]) < 1e-6
-    skin = head.data.materials[0]
-    assert all(abs(a - b) < 1e-6 for a, b in
-               zip(skin.diffuse_color, srgb(PALETTE[CHARACTERS[character][1]])))
-    for key in ("02_FACE", "03_HAIR_HEADWEAR"):
-        assert not bpy.data.collections[key].hide_render
-    assert not any(obj.type == "ARMATURE" for obj in scene.objects)
+        coll = bpy.data.collections["10 - Eye " + side]
+        assert len(coll.objects) == 3  # Outline, white, one pupil; no iris or glint.
+    assert bpy.data.objects["Packed owner flat reference"].data.packed_file
     assert bpy.data.texts[Path(__file__).name].as_string() == Path(__file__).read_text()
-    assert bpy.data.texts["setup_character_project.py"].as_string() == (
-        KIT / "12_BLENDER_AUTOMATION/setup_character_project.py").read_text()
-    print(f"VERIFIED {scene.name}: {len(head.data.polygons)} head quads, "
-          f"{len(pieces)} complete pieces; head={head_digest(head)}", flush=True)
-    return head_digest(head)
-
-
-def verify_images(character):
-    for kind in ("portrait", "blank"):
-        path = RENDERS / f"gbam-{character}-{kind}.png"
-        image = bpy.data.images.load(str(path), check_existing=False)
-        assert tuple(image.size) == (1024, 1024), path
-        assert image.channels == 4, path
-        assert path.stat().st_size > 20000, path
-        bpy.data.images.remove(image)
-    print(f"VERIFIED {character}: full-size portrait and blank RGBA PNGs", flush=True)
+    print(f"VERIFIED FLAT {character}: {len(pieces)} pieces; emission-only paint, no meshes/lights.", flush=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--character", choices=("boy", "girl", "all"), default="all")
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--no-render", action="store_true")
-    mode.add_argument("--verify-only", action="store_true")
+    parser.add_argument("--verify-only", action="store_true")
     args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
-    hashes = []
     for character in CHARACTERS if args.character == "all" else (args.character,):
-        path = OUTPUT / f"gbam-{character}-portrait.blend"
+        path = ROOT / f"art/blender/gbam-{character}-portrait-flat.blend"
         if not args.verify_only:
-            scene = build(character)
+            build(character)
             verify(character)
             bpy.context.preferences.filepaths.save_version = 0
             bpy.ops.wm.save_as_mainfile(filepath=str(path))
         bpy.ops.wm.open_mainfile(filepath=str(path))
-        hashes.append(verify(character))
-        if not args.no_render and not args.verify_only:
+        verify(character)
+        if not args.verify_only:
             scene = bpy.context.scene
             bpy.ops.render.render(write_still=True)
-            for name in ("02_FACE", "03_HAIR_HEADWEAR"):
-                bpy.data.collections[name].hide_render = True
-            scene.render.filepath = str(RENDERS / f"gbam-{character}-blank.png")
+            for coll in bpy.data.collections:
+                if coll.get("draggable"):
+                    coll.hide_render = True
+            scene.render.filepath = str(ROOT / f"art/renders/gbam-{character}-blank-flat.png")
             bpy.ops.render.render(write_still=True)
-            for name in ("02_FACE", "03_HAIR_HEADWEAR"):
-                bpy.data.collections[name].hide_render = False
-            print(f"RENDERED {character}: portrait and blank base", flush=True)
-        if not args.no_render:
-            verify_images(character)
-    assert len(set(hashes)) == 1, "Both characters must use the identical neutral head mesh"
+        for kind in ("portrait", "blank"):
+            image = bpy.data.images.load(str(ROOT / f"art/renders/gbam-{character}-{kind}-flat.png"))
+            assert tuple(image.size) == (1502, 1600) and image.channels == 4
 
 
 if __name__ == "__main__":
