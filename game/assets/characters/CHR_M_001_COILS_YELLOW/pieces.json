@@ -1,0 +1,74 @@
+{
+  "id": "CHR_M_001_COILS_YELLOW",
+  "title": "Coils and sunshine",
+  "canvas_width": 1502,
+  "canvas_height": 1600,
+  "base": "base.png",
+  "example": "example.png",
+  "snap_radius": 100,
+  "pieces": [
+    {
+      "id": "eye_l",
+      "file": "eye_l.png",
+      "target_x": 588.0,
+      "target_y": 782.0,
+      "width": 234,
+      "height": 182,
+      "z_order": 200
+    },
+    {
+      "id": "eye_r",
+      "file": "eye_r.png",
+      "target_x": 912.5,
+      "target_y": 764.5,
+      "width": 235,
+      "height": 181,
+      "z_order": 200
+    },
+    {
+      "id": "brow_l",
+      "file": "brow_l.png",
+      "target_x": 581.0,
+      "target_y": 634.5,
+      "width": 184,
+      "height": 63,
+      "z_order": 210
+    },
+    {
+      "id": "brow_r",
+      "file": "brow_r.png",
+      "target_x": 905.0,
+      "target_y": 617.5,
+      "width": 184,
+      "height": 63,
+      "z_order": 210
+    },
+    {
+      "id": "mouth",
+      "file": "mouth.png",
+      "target_x": 778.5,
+      "target_y": 1137.5,
+      "width": 333,
+      "height": 167,
+      "z_order": 210
+    },
+    {
+      "id": "nose",
+      "file": "nose.png",
+      "target_x": 777.0,
+      "target_y": 926.5,
+      "width": 158,
+      "height": 227,
+      "z_order": 235
+    },
+    {
+      "id": "hair_coils",
+      "file": "hair_coils.png",
+      "target_x": 758.0,
+      "target_y": 472.5,
+      "width": 862,
+      "height": 489,
+      "z_order": 270
+    }
+  ]
+}

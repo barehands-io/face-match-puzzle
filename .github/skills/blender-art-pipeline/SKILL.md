@@ -36,7 +36,7 @@ supplies the character designs, diversity, soft proportions and warm palette.
   Collections 01–03 retain head/ears/neck, flat cheek circles and fixed portrait outfits.
 - Backgrounds are bold flat panels: yellow boy, coral girl. Keep grain and painted strokes,
   but never introduce 3D shading, gradients or shiny dots.
-- Individual transparent game-piece exports and gameplay are not built yet.
+- Whole-feature exports and the first Godot drag-and-snap prototype now exist in `game/`.
 
 ## Original redhead artwork (reuse technique, not character design)
 - Script: `art/blender/scripts/create_character.py` — builds the redhead girl as an editable 2.5D
@@ -65,7 +65,13 @@ ivory eyes with dusty-blue irises, sage-green paper background with grey charcoa
 - The saved scene always retains the full 1502×1600 front-camera framing, even with `--preview`.
   Preview output is `art/renders/clown-preview.png`.
 
-## Exporting game pieces (to build)
+## Exporting game pieces
+Run `Blender --background --factory-startup --python-exit-code 1 --python art/blender/scripts/export_puzzle_pieces.py`.
+The script exports both launch characters from their saved flat scenes without changing the scenes.
+It generates the complete example, blank base, cropped transparent feature PNGs, and `pieces.json`
+under `game/assets/characters/<character_id>/`. Target coordinates are crop centres in source pixels.
+The Godot mechanics test reconstructs the complete face and compares it against the example.
+
 Each draggable piece must become **one transparent PNG**, all rendered from the same front camera so
 positions line up:
 1. For each piece, render only its collection(s) with `film_transparent = True`, other collections hidden.

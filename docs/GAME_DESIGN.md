@@ -1,6 +1,6 @@
 # Game design — Face Match Puzzle
 
-Status: **discussion / pre-production**. No game code yet.
+Status: **playable first mechanics prototype** in `game/` (Godot 4, GDScript).
 
 ## Concept
 A digital version of a magnetic face-building toy for young children. Each "card" is a character.
@@ -18,7 +18,8 @@ not designs to recreate for launch.
 1. Pick a character card.
 2. Screen shows: small **example** of the finished face, the **blank face base**, and a **tray** of loose pieces.
 3. Child drags a piece onto the face.
-4. Near the correct spot → it **snaps** in with a sound/wiggle. Elsewhere → it gently floats back or stays (TBD).
+4. Near the correct spot → it **snaps** in with a soft note and small bounce.
+   For this prototype, other drops gently return to the tray; this behaviour can change after playtesting.
 5. All pieces placed → character **celebrates** (animation, sound). Next card.
 
 ## Pieces (split by whole facial feature)
@@ -115,12 +116,32 @@ Each draggable collection has a `piece_id` and `draggable = True`. Hide those co
 produce the blank base; head, ears, neck, cheeks and clothing remain, with identical camera framing.
 The generator reopens both saved scenes and checks flat-only materials, piece grouping and PNG sizes.
 Use `--verify-only` to repeat those checks without rebuilding.
-Individual transparent piece exports and Godot code are not built yet. Rigging/full-body 3D work
-is not part of this corrected illustration pipeline.
+Whole-feature PNGs and manifests are now exported to `game/assets/characters/<character_id>/`.
+Regenerate them with Blender running `art/blender/scripts/export_puzzle_pieces.py`.
+Each `pieces.json` records canvas size, target centre in source pixels, stacking order, image size
+and snap radius. The exporter crops transparent bounds and keeps the crop offset in target coordinates.
+Rigging/full-body 3D work is not part of this illustration pipeline.
+
+## Playable mechanics prototype
+- Open `game/project.godot` in Godot 4 and press F5, or run Godot with `--path game`.
+- Finished example on the left, blank face in the middle, whole-feature tray on the right.
+- Mouse and single-finger drag; other fingers cannot take over an active drag.
+- Pieces grow from tray thumbnails to their true face size when picked up.
+- Release near the matching target to snap, play a soft note, and count the piece once.
+  The radius is 100 source pixels with a minimum 38 logical screen pixels for forgiving placement.
+- Wrong drops and interrupted drags return to the tray without a penalty.
+- All pieces placed shows an encouraging message and simple confetti. Start again, switch between
+  the launch characters, or mute sound using the bottom buttons.
+- Landscape-first, scalable layout; no timers, score, ads, accounts or network requirement.
+- The separate braided-boy artwork remains a visual review and is not added to the launch roster.
+- Checks: `Godot --headless --path game --script res://tests/puzzle_test.gd`.
+  Covers both characters, mouse/touch, snap boundaries, multiple fingers, interruption, replay,
+  character switching, scaled input and reconstruction against the finished example.
+- Native desktop prototype only so far: mobile-device and Safari/web-export testing remain pending.
 
 ## Open questions
 - Target age range?
 - Match mode, free mode, or both for v1?
-- Wrong-spot behaviour: bounce back to tray, or stay where dropped?
+- Keep the prototype's gentle return-to-tray behaviour, or let misplaced pieces stay?
 - Voice-over / names of features ("Where does the nose go?")?
 - Monetisation: paid app, free with character packs, or free?

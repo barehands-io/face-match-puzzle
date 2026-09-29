@@ -12,7 +12,29 @@ and hair onto a blank face to rebuild it. Inspired by magnetic face-puzzle toys.
 - **Art:** Blender (scripted, `art/blender/`)
 - **Design doc:** [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md)
 
-Status: pre-production. The two flat painted GBAM portraits and blank bases are ready for design review;
-individual game-piece exports and gameplay are not built yet. Earlier redhead/clown artwork is
+## Play the prototype
+
+Open `game/project.godot` in Godot 4 and press **F5**. Drag features onto the blank face to
+match the example. Nearby drops snap into place; other drops gently return to the tray.
+Complete the face, try again, or switch characters. Mouse and touch are supported.
+
+On this Mac:
+```sh
+/Applications/Godot.app/Contents/MacOS/Godot --path game
+```
+
+Run the mechanics checks:
+```sh
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path game --script res://tests/puzzle_test.gd
+```
+
+Regenerate the game assets from the saved flat Blender scenes:
+```sh
+/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup \
+  --python-exit-code 1 --python art/blender/scripts/export_puzzle_pieces.py
+```
+
+Status: first playable desktop prototype; mobile devices and web/Safari export are not yet tested.
+Earlier redhead/clown artwork is
 preserved as history. The clay-style GBAM renders are also historical; the active artwork uses
 `-flat` filenames and the owner's flat-illustration reference sheet.
